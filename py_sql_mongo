@@ -1,0 +1,177 @@
+pip install sqlalchemy
+from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship, sessionmaker
+
+# Definindo a URL de conexão com o banco de dados SQLite
+DATABASE_URL = "sqlite:///exemplo.db"
+
+# Criando o mecanismo de conexão
+engine = create_engine(DATABASE_URL, echo=True)
+
+# Base declarativa
+Base = declarative_base()
+
+# Definindo a classe Cliente
+class Cliente(Base):
+    __tablename__ = 'cliente'
+
+    id = Column(Integer, primary_key=True)
+    nome = Column(String, nullable=False)
+    cpf = Column(String, nullable=False, unique=True)
+    endereco = Column(String, nullable=False)
+
+    # Relação com a classe Conta
+    contas = relationship("Conta", back_populates="cliente")
+
+    def __repr__(self):
+        return f"<Cliente(id={self.id}, nome={self.nome}, cpf={self.cpf}, endereco={self.endereco})>"
+
+# Definindo a classe Conta
+class Conta(Base):
+    __tablename__ = 'conta'
+
+    id = Column(Integer, primary_key=True)
+    tipo = Column(String, nullable=False)
+    agencia = Column(String, nullable=False)
+    num = Column(String, nullable=False, unique=True)
+    id_cliente = Column(Integer, ForeignKey('cliente.id'), nullable=False)
+    saldo = Column(Float, nullable=False)
+
+    # Relação com a classe Cliente
+    cliente = relationship("Cliente", back_populates="contas")
+
+    def __repr__(self):
+        return f"<Conta(id={self.id}, tipo={self.tipo}, agencia={self.agencia}, num={self.num}, saldo={self.saldo})>"
+
+# Criando as tabelas no banco de dados
+Base.metadata.create_all(engine)
+
+# Criando uma fábrica de sessões
+Session = sessionmaker(bind=engine)
+session = Session()
+
+# Inserindo dados de exemplo
+def inserir_dados():
+    # Criar novos clientes
+    cliente1 = Cliente(nome="João Silva", cpf="12345678901", endereco="Rua A, 123")
+    cliente2 = Cliente(nome="Maria Oliveira", cpf="98765432100", endereco="Avenida B, 456")
+
+    # Adicionar clientes à sessão
+    session.add(cliente1)
+    session.add(cliente2)
+    session.commit()
+
+    # Criar novas contas
+    conta1 = Conta(tipo="Corrente", agencia="1234", num="00001", id_cliente=cliente1.id, saldo=1500.00)
+    conta2 = Conta(tipo="Poupança", agencia="5678", num="00002", id_cliente=cliente2.id, saldo=2500.00)
+
+    # Adicionar contas à sessão
+    session.add(conta1)
+    session.add(conta2)
+    session.commit()
+
+    print("Dados inseridos com sucesso!")
+
+inserir_dados()
+
+# Funções para recuperar dados
+def recuperar_clientes():
+    clientes = session.query(Cliente).all()
+    for cliente in clientes:
+        print(cliente)
+
+def recuperar_contas():
+    contas = session.query(Conta).all()
+    for conta in contas:
+        print(conta)
+
+def recuperar_cliente_por_id(cliente_id):
+    cliente = session.query(Cliente).filter_by(id=cliente_id).first()
+    if cliente:
+        print(cliente)
+    else:
+        print("Cliente não encontrado")
+
+def recuperar_conta_por_id(conta_id):
+    conta = session.query(Conta).filter_by(id=conta_id).first()
+    if conta:
+        print(conta)
+    else:
+        print("Conta não encontrada")
+
+# Exemplos de uso das funções de recuperação
+print("Clientes:")
+recuperar_clientes()
+
+print("\nContas:")
+recuperar_contas()
+
+print("\nCliente com ID 1:")
+recuperar_cliente_por_id(1)
+
+print("\nConta com ID 1:")
+recuperar_conta_por_id(1)
+
+#parte 2
+
+pip install pymongo
+from pymongo import MongoClient
+
+# URL de conexão com MongoDB Atlas
+MONGO_URI = "mongodb+srv://<username>:<password>@<cluster-url>/<dbname>?retryWrites=true&w=majority"
+
+# Criar uma conexão com o MongoDB Atlas
+client = MongoClient(MONGO_URI)
+
+# Criar ou acessar o banco de dados
+db = client['banco_relacional']
+
+# Criar ou acessar a coleção
+collection = db['bank']
+# Dados de exemplo para inserção
+clientes = [
+    {
+        "nome": "João Silva",
+        "cpf": "12345678901",
+        "endereco": "Rua A, 123",
+        "contas": [
+            {"tipo": "Corrente", "agencia": "1234", "num": "00001", "saldo": 1500.00}
+        ]
+    },
+    {
+        "nome": "Maria Oliveira",
+        "cpf": "98765432100",
+        "endereco": "Avenida B, 456",
+        "contas": [
+            {"tipo": "Poupança", "agencia": "5678", "num": "00002", "saldo": 2500.00}
+        ]
+    }
+]
+
+# Inserir documentos na coleção
+collection.insert_many(clientes)
+print("Documentos inseridos com sucesso!")
+
+# Recuperar todos os documentos
+for cliente in collection.find():
+    print(cliente)
+
+# Buscar um cliente pelo CPF
+cpf = "12345678901"
+cliente = collection.find_one({"cpf": cpf})
+print(cliente)
+
+# Buscar um cliente pelo nome e exibir suas contas
+nome_cliente = "João Silva"
+cliente = collection.find_one({"nome": nome_cliente})
+if cliente:
+    print(f"Contas de {nome_cliente}:")
+    for conta in cliente.get("contas", []):
+        print(conta)
+else:
+    print("Cliente não encontrado")
+
+# Buscar contas com saldo maior que 2000
+for cliente in collection.find({"contas.saldo": {"$gt": 2000}}):
+    print(cliente)
